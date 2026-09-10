@@ -1,0 +1,97 @@
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: embediq-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: embediq_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d embediq_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - embediq-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: embediq-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - embediq-network
+
+  backend:
+    env_file:
+      - .env
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: embediq-backend
+    restart: unless-stopped
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      - APP_ENV=development
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/embediq_db
+      - SYNC_DATABASE_URL=postgresql://postgres:postgres@postgres:5432/embediq_db
+      - REDIS_URL=redis://redis:6379/0
+      - JWT_SECRET=embediq_development_secret_key_change_in_production_32chars
+      - FRONTEND_ORIGIN=http://localhost:3000
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - embediq-network
+
+  celery_worker:
+    env_file:
+      - .env
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: embediq-celery-worker
+    restart: unless-stopped
+    command: celery -A app.jobs.celery_app worker --loglevel=info -c 4
+    environment:
+      - APP_ENV=development
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/embediq_db
+      - SYNC_DATABASE_URL=postgresql://postgres:postgres@postgres:5432/embediq_db
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - ./backend:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - embediq-network
+
+volumes:
+  pgdata:
+  redisdata:
+
+networks:
+  embediq-network:
+    driver: bridge

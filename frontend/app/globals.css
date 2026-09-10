@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --ei-deep: #080A0D;
+  --ei-charcoal: #111418;
+  --ei-graphite: #1A1D21;
+  --ei-silver: #C8CBD0;
+  --ei-bright-silver: #E8EAEC;
+  --ei-muted-silver: #9EA3AA;
+  --ei-gold: #D6A84F;
+  --ei-gold-bright: #F0C76A;
+  --ei-gold-deep: #9C7229;
+  --ei-white: #F5F5F3;
+  --ei-muted-white: #8C9299;
+  --background: var(--ei-deep);
+  --foreground: var(--ei-white);
+}
+
+* { box-sizing: border-box; }
+html { background: var(--ei-deep); }
+body {
+  margin: 0; color: var(--foreground); background: var(--background);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+::selection { background: rgba(214,168,79,.3); color: #fff; }
+.ei-panel { background: linear-gradient(145deg, rgba(26,29,33,.96), rgba(17,20,24,.96)); border: 1px solid rgba(200,203,208,.14); box-shadow: 0 18px 60px rgba(0,0,0,.22); }
+.ei-gold-text { color: var(--ei-gold); }
+.ei-muted { color: var(--ei-muted-white); }
