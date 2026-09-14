@@ -13,6 +13,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
@@ -42,7 +43,9 @@ async def get_widget_config(
     user data, or raw knowledge base content.
     """
     # Verify bot exists
-    result = await db.execute(select(Bot).where(Bot.id == bot_id))
+    result = await db.execute(
+        select(Bot).options(selectinload(Bot.brand_settings)).where(Bot.id == bot_id)
+    )
     bot = result.scalar_one_or_none()
     if not bot:
         raise HTTPException(
@@ -51,10 +54,7 @@ async def get_widget_config(
         )
 
     # Load brand settings (may not exist if bot not yet crawled)
-    brand_result = await db.execute(
-        select(BrandSettings).where(BrandSettings.bot_id == bot_id)
-    )
-    brand = brand_result.scalar_one_or_none()
+    brand = bot.brand_settings
 
     theme = WidgetTheme(
         primary_color=brand.primary_color if brand else "#2563EB",
