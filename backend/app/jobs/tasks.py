@@ -21,10 +21,10 @@ import hashlib
 import logging
 import uuid
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List
 
 from celery import chain
-from sqlalchemy import create_engine, select, func, delete
+from sqlalchemy import create_engine, select, delete
 from sqlalchemy.orm import sessionmaker, Session
 
 from app.core.config import settings
@@ -108,7 +108,6 @@ def _fail_job(
 def validate_url_task(self, bot_id: str, crawl_job_id: str) -> dict:
     """Validate target URL against SSRF policy (PRD 9.1 Task 1)."""
     from app.models.bot import Bot
-    from app.models.crawl_job import CrawlJob
     from app.services.ssrf_guard import validate_url
 
     logger.info("[validate_url] bot=%s job=%s", bot_id, crawl_job_id)
@@ -185,7 +184,6 @@ def discover_pages_task(self, prev: dict) -> dict:
 def crawl_pages_task(self, prev: dict) -> dict:
     """Crawl all discovered pages (HTTP fast-path + Playwright fallback) (PRD 9.1 Task 3)."""
     from app.models.page import Page
-    from app.models.crawl_job import CrawlJob
     from app.services.crawler import Crawler
 
     bot_id = prev["bot_id"]
@@ -197,10 +195,6 @@ def crawl_pages_task(self, prev: dict) -> dict:
     try:
         _update_job_stage(db, crawl_job_id, "CRAWLING")
 
-        job = db.get(
-            __import__("app.models.crawl_job", fromlist=["CrawlJob"]).CrawlJob,
-            uuid.UUID(crawl_job_id),
-        )
         bot = db.get(
             __import__("app.models.bot", fromlist=["Bot"]).Bot,
             uuid.UUID(bot_id),
@@ -209,13 +203,23 @@ def crawl_pages_task(self, prev: dict) -> dict:
         crawler = Crawler(origin=bot.website_url, settings=settings)
         results = asyncio.run(crawler.crawl_all(urls, concurrency=settings.CRAWL_CONCURRENCY_PER_BOT))
 
+        # Fetch all existing pages in one query (Optimization)
+        result_urls = [r.url for r in results]
+        existing_pages_query = db.execute(
+            select(Page).where(
+                Page.bot_id == uuid.UUID(bot_id),
+                Page.url.in_(result_urls)
+            )
+        ).scalars().all()
+
+        # Map them for O(1) lookups
+        existing_pages_map = {page.url: page for page in existing_pages_query}
+
         processed = 0
         failed = 0
         for result in results:
             # Upsert Page record
-            existing = db.execute(
-                select(Page).where(Page.bot_id == uuid.UUID(bot_id), Page.url == result.url)
-            ).scalar_one_or_none()
+            existing = existing_pages_map.get(result.url)
 
             if existing:
                 page = existing
@@ -648,7 +652,6 @@ def chunk_and_embed_task(self, prev: dict) -> dict:
 @celery_app.task(bind=True, name="embediq.tasks.finalize_crawl_task", max_retries=0)
 def finalize_crawl_task(self, prev: dict) -> dict:
     """Transition bot to READY/READY_WITH_WARNINGS/FAILED (PRD 9.1 Task 7)."""
-    from app.models.chunk import Chunk
     from app.models.crawl_job import CrawlJob
 
     bot_id = prev["bot_id"]
