@@ -3,8 +3,6 @@
 import hashlib
 import textwrap
 
-import pytest
-
 from app.services.chunker import MarkdownChunker, Chunk, _estimate_tokens, _sha256
 
 # ---------------------------------------------------------------------------
