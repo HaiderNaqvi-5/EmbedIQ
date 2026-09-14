@@ -70,7 +70,12 @@ def _clean_query_string(query: str) -> str:
     if not query:
         return ""
     params = parse_qs(query, keep_blank_values=True)
-    cleaned = {k: v for k, v in params.items() if not _is_strip_param(k)}
+    # Also sort list values for determinism
+    cleaned = {
+        k: sorted(params[k])
+        for k in sorted(params.keys())
+        if not _is_strip_param(k)
+    }
     # Sort keys for determinism
     return urlencode(cleaned, doseq=True) if cleaned else ""
 
