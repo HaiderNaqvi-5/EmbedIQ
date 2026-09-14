@@ -4,6 +4,7 @@ import pytest
 
 from app.services.rag import (
     ChatMessage,
+    RAGRequest,
     RAGResponse,
     _build_system_prompt,
     _deduplicate_sources,
@@ -185,11 +186,15 @@ class TestChatWithRagZeroChunks:
         async def _mock_get_or_create(*args, **kwargs):
             return None
 
+        async def _mock_get_query_embedding(*args, **kwargs):
+            return [0.0] * 1536
+
         monkeypatch.setattr(rag_mod, "retrieve_chunks", _mock_retrieve)
         monkeypatch.setattr(rag_mod, "_persist_turn", _mock_persist)
         monkeypatch.setattr(rag_mod, "_get_or_create_conversation", _mock_get_or_create)
+        monkeypatch.setattr(rag_mod, "_get_query_embedding", _mock_get_query_embedding)
 
-        result = await chat_with_rag(
+        rag_request = RAGRequest(
             bot_id=None,
             session_id="test-session",
             user_message="What is the meaning of life?",
@@ -197,6 +202,8 @@ class TestChatWithRagZeroChunks:
             db=None,
             bot_name="Test Bot",
         )
+
+        result = await chat_with_rag(rag_request)
 
         assert isinstance(result, RAGResponse)
         assert "don't have information" in result.answer.lower() or "sorry" in result.answer.lower()
