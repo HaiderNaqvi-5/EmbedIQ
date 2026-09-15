@@ -6,7 +6,6 @@ Ownership is enforced via the `get_bot_for_user` dependency which returns 404
 if the bot doesn't exist OR belongs to a different user.
 """
 
-import uuid
 import re
 from typing import List
 from urllib.parse import urlparse
