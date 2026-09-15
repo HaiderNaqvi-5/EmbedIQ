@@ -5,6 +5,7 @@ All statistics are derived from persisted Bot, Conversation and Message rows.
 Every query is scoped through Bot.user_id to prevent cross-user analytics access.
 """
 
+import asyncio
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends
@@ -12,7 +13,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
-from app.db.session import get_db
+from app.db.session import AsyncSessionLocal
 from app.models.bot import Bot
 from app.models.conversation import Conversation, Message
 from app.models.user import User
@@ -24,7 +25,6 @@ router = APIRouter(prefix="/analytics", tags=["Analytics"])
 @router.get("")
 async def get_analytics(
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
 ):
     """
     Return real workspace analytics for the authenticated user.
@@ -54,113 +54,90 @@ async def get_analytics(
 
     seven_days_start = today_start - timedelta(days=6)
 
-    # --------------------------------------------------------
-    # Workspace totals
-    # --------------------------------------------------------
+    async def _execute_scalar(query):
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(query)
+            return result.scalar_one()
 
-    total_bots = (
-        await db.execute(
-            select(func.count(Bot.id)).where(
-                Bot.user_id == user_id
-            )
-        )
-    ).scalar_one()
+    async def _execute_all(query):
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(query)
+            return result.all()
 
-    total_conversations = (
-        await db.execute(
-            select(func.count(Conversation.id))
-            .join(Bot, Conversation.bot_id == Bot.id)
-            .where(Bot.user_id == user_id)
-        )
-    ).scalar_one()
+    # Define all queries
+    q_total_bots = select(func.count(Bot.id)).where(Bot.user_id == user_id)
 
-    total_messages = (
-        await db.execute(
-            select(func.count(Message.id))
-            .join(
-                Conversation,
-                Message.conversation_id == Conversation.id,
-            )
-            .join(Bot, Conversation.bot_id == Bot.id)
-            .where(Bot.user_id == user_id)
-        )
-    ).scalar_one()
-
-    user_questions = (
-        await db.execute(
-            select(func.count(Message.id))
-            .join(
-                Conversation,
-                Message.conversation_id == Conversation.id,
-            )
-            .join(Bot, Conversation.bot_id == Bot.id)
-            .where(
-                Bot.user_id == user_id,
-                Message.role == "user",
-            )
-        )
-    ).scalar_one()
-
-    assistant_responses = (
-        await db.execute(
-            select(func.count(Message.id))
-            .join(
-                Conversation,
-                Message.conversation_id == Conversation.id,
-            )
-            .join(Bot, Conversation.bot_id == Bot.id)
-            .where(
-                Bot.user_id == user_id,
-                Message.role == "assistant",
-            )
-        )
-    ).scalar_one()
-
-    conversations_today = (
-        await db.execute(
-            select(func.count(Conversation.id))
-            .join(Bot, Conversation.bot_id == Bot.id)
-            .where(
-                Bot.user_id == user_id,
-                Conversation.created_at >= today_start,
-            )
-        )
-    ).scalar_one()
-
-    messages_today = (
-        await db.execute(
-            select(func.count(Message.id))
-            .join(
-                Conversation,
-                Message.conversation_id == Conversation.id,
-            )
-            .join(Bot, Conversation.bot_id == Bot.id)
-            .where(
-                Bot.user_id == user_id,
-                Message.created_at >= today_start,
-            )
-        )
-    ).scalar_one()
-
-    active_bots = (
-        await db.execute(
-            select(func.count(func.distinct(Conversation.bot_id)))
-            .join(Bot, Conversation.bot_id == Bot.id)
-            .where(Bot.user_id == user_id)
-        )
-    ).scalar_one()
-
-    average_messages_per_conversation = (
-        round(total_messages / total_conversations, 2)
-        if total_conversations
-        else 0
+    q_total_conversations = (
+        select(func.count(Conversation.id))
+        .join(Bot, Conversation.bot_id == Bot.id)
+        .where(Bot.user_id == user_id)
     )
 
-    # --------------------------------------------------------
-    # Last 7 days
-    # --------------------------------------------------------
+    q_total_messages = (
+        select(func.count(Message.id))
+        .join(
+            Conversation,
+            Message.conversation_id == Conversation.id,
+        )
+        .join(Bot, Conversation.bot_id == Bot.id)
+        .where(Bot.user_id == user_id)
+    )
 
-    conversation_activity_result = await db.execute(
+    q_user_questions = (
+        select(func.count(Message.id))
+        .join(
+            Conversation,
+            Message.conversation_id == Conversation.id,
+        )
+        .join(Bot, Conversation.bot_id == Bot.id)
+        .where(
+            Bot.user_id == user_id,
+            Message.role == "user",
+        )
+    )
+
+    q_assistant_responses = (
+        select(func.count(Message.id))
+        .join(
+            Conversation,
+            Message.conversation_id == Conversation.id,
+        )
+        .join(Bot, Conversation.bot_id == Bot.id)
+        .where(
+            Bot.user_id == user_id,
+            Message.role == "assistant",
+        )
+    )
+
+    q_conversations_today = (
+        select(func.count(Conversation.id))
+        .join(Bot, Conversation.bot_id == Bot.id)
+        .where(
+            Bot.user_id == user_id,
+            Conversation.created_at >= today_start,
+        )
+    )
+
+    q_messages_today = (
+        select(func.count(Message.id))
+        .join(
+            Conversation,
+            Message.conversation_id == Conversation.id,
+        )
+        .join(Bot, Conversation.bot_id == Bot.id)
+        .where(
+            Bot.user_id == user_id,
+            Message.created_at >= today_start,
+        )
+    )
+
+    q_active_bots = (
+        select(func.count(func.distinct(Conversation.bot_id)))
+        .join(Bot, Conversation.bot_id == Bot.id)
+        .where(Bot.user_id == user_id)
+    )
+
+    q_conversation_activity = (
         select(
             func.date(Conversation.created_at).label("day"),
             func.count(Conversation.id).label("count"),
@@ -173,12 +150,7 @@ async def get_analytics(
         .group_by(func.date(Conversation.created_at))
     )
 
-    conversation_activity = {
-        str(row.day): row.count
-        for row in conversation_activity_result.all()
-    }
-
-    message_activity_result = await db.execute(
+    q_message_activity = (
         select(
             func.date(Message.created_at).label("day"),
             func.count(Message.id).label("count"),
@@ -194,29 +166,6 @@ async def get_analytics(
         )
         .group_by(func.date(Message.created_at))
     )
-
-    message_activity = {
-        str(row.day): row.count
-        for row in message_activity_result.all()
-    }
-
-    activity = []
-
-    for offset in range(7):
-        day = (seven_days_start + timedelta(days=offset)).date()
-        key = str(day)
-
-        activity.append(
-            {
-                "date": key,
-                "conversations": conversation_activity.get(key, 0),
-                "messages": message_activity.get(key, 0),
-            }
-        )
-
-    # --------------------------------------------------------
-    # Per-bot analytics
-    # --------------------------------------------------------
 
     conversation_count = (
         select(func.count(Conversation.id))
@@ -247,21 +196,109 @@ async def get_analytics(
         .scalar_subquery()
     )
 
-    bot_rows = (
-        await db.execute(
-            select(
-                Bot.id,
-                Bot.name,
-                Bot.website_url,
-                Bot.status,
-                conversation_count.label("conversation_count"),
-                message_count.label("message_count"),
-                last_activity.label("last_activity"),
-            )
-            .where(Bot.user_id == user_id)
-            .order_by(Bot.created_at.desc())
+    q_bot_rows = (
+        select(
+            Bot.id,
+            Bot.name,
+            Bot.website_url,
+            Bot.status,
+            conversation_count.label("conversation_count"),
+            message_count.label("message_count"),
+            last_activity.label("last_activity"),
         )
-    ).all()
+        .where(Bot.user_id == user_id)
+        .order_by(Bot.created_at.desc())
+    )
+
+    q_recent_rows = (
+        select(
+            Conversation.id,
+            Conversation.bot_id,
+            Conversation.session_id,
+            Conversation.created_at,
+            Bot.name.label("bot_name"),
+            func.count(Message.id).label("message_count"),
+            func.max(Message.created_at).label("last_activity"),
+        )
+        .join(Bot, Conversation.bot_id == Bot.id)
+        .outerjoin(
+            Message,
+            Message.conversation_id == Conversation.id,
+        )
+        .where(Bot.user_id == user_id)
+        .group_by(
+            Conversation.id,
+            Conversation.bot_id,
+            Conversation.session_id,
+            Conversation.created_at,
+            Bot.name,
+        )
+        .order_by(Conversation.created_at.desc())
+        .limit(10)
+    )
+
+    # Execute all queries concurrently
+    (
+        total_bots,
+        total_conversations,
+        total_messages,
+        user_questions,
+        assistant_responses,
+        conversations_today,
+        messages_today,
+        active_bots,
+        conversation_activity_result,
+        message_activity_result,
+        bot_rows,
+        recent_rows,
+    ) = await asyncio.gather(
+        _execute_scalar(q_total_bots),
+        _execute_scalar(q_total_conversations),
+        _execute_scalar(q_total_messages),
+        _execute_scalar(q_user_questions),
+        _execute_scalar(q_assistant_responses),
+        _execute_scalar(q_conversations_today),
+        _execute_scalar(q_messages_today),
+        _execute_scalar(q_active_bots),
+        _execute_all(q_conversation_activity),
+        _execute_all(q_message_activity),
+        _execute_all(q_bot_rows),
+        _execute_all(q_recent_rows),
+    )
+
+    # --------------------------------------------------------
+    # Process results
+    # --------------------------------------------------------
+
+    average_messages_per_conversation = (
+        round(total_messages / total_conversations, 2)
+        if total_conversations
+        else 0
+    )
+
+    conversation_activity = {
+        str(row.day): row.count
+        for row in conversation_activity_result
+    }
+
+    message_activity = {
+        str(row.day): row.count
+        for row in message_activity_result
+    }
+
+    activity = []
+
+    for offset in range(7):
+        day = (seven_days_start + timedelta(days=offset)).date()
+        key = str(day)
+
+        activity.append(
+            {
+                "date": key,
+                "conversations": conversation_activity.get(key, 0),
+                "messages": message_activity.get(key, 0),
+            }
+        )
 
     bots = [
         {
@@ -279,39 +316,6 @@ async def get_analytics(
         }
         for row in bot_rows
     ]
-
-    # --------------------------------------------------------
-    # Recent conversations
-    # --------------------------------------------------------
-
-    recent_rows = (
-        await db.execute(
-            select(
-                Conversation.id,
-                Conversation.bot_id,
-                Conversation.session_id,
-                Conversation.created_at,
-                Bot.name.label("bot_name"),
-                func.count(Message.id).label("message_count"),
-                func.max(Message.created_at).label("last_activity"),
-            )
-            .join(Bot, Conversation.bot_id == Bot.id)
-            .outerjoin(
-                Message,
-                Message.conversation_id == Conversation.id,
-            )
-            .where(Bot.user_id == user_id)
-            .group_by(
-                Conversation.id,
-                Conversation.bot_id,
-                Conversation.session_id,
-                Conversation.created_at,
-                Bot.name,
-            )
-            .order_by(Conversation.created_at.desc())
-            .limit(10)
-        )
-    ).all()
 
     recent_conversations = [
         {
