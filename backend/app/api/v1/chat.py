@@ -21,7 +21,7 @@ from app.db.session import get_db
 from app.models.bot import Bot
 from app.models.brand import BrandSettings
 from app.schemas.chat import ChatRequest, ChatResponse, SourceRef
-from app.services.rag import chat_with_rag, stream_chat_with_rag
+from app.services.rag import RAGRequest, chat_with_rag, stream_chat_with_rag
 
 logger = logging.getLogger("embediq.chat")
 
@@ -84,7 +84,7 @@ async def chat(
     bot = await _get_ready_bot(req.bot_id, db)
     bot_name = await _get_bot_name(req.bot_id, db)
 
-    rag_response = await chat_with_rag(
+    rag_request = RAGRequest(
         bot_id=req.bot_id,
         session_id=req.session_id,
         user_message=req.message,
@@ -92,6 +92,8 @@ async def chat(
         db=db,
         bot_name=bot_name,
     )
+
+    rag_response = await chat_with_rag(rag_request)
 
     return ChatResponse(
         answer=rag_response.answer,
@@ -123,16 +125,18 @@ async def chat_stream(
     bot = await _get_ready_bot(req.bot_id, db)
     bot_name = await _get_bot_name(req.bot_id, db)
 
+    rag_request = RAGRequest(
+        bot_id=req.bot_id,
+        session_id=req.session_id,
+        user_message=req.message,
+        history=[],
+        db=db,
+        bot_name=bot_name,
+    )
+
     async def event_generator() -> AsyncGenerator[str, None]:
         try:
-            async for event in stream_chat_with_rag(
-                bot_id=req.bot_id,
-                session_id=req.session_id,
-                user_message=req.message,
-                history=[],
-                db=db,
-                bot_name=bot_name,
-            ):
+            async for event in stream_chat_with_rag(rag_request):
                 event_type = event["event"]
                 data = event["data"]
                 # Format: "event: {type}\ndata: {json}\n\n"
