@@ -219,26 +219,26 @@ export default function BrandingPage() {
 
             <div className="grid gap-3 sm:grid-cols-2">
               {colors.map(({ label, field }) => (
-                <div
+                <label
                   key={field}
-                  className="flex items-center gap-3 rounded-xl border border-[#C8CBD0]/10 bg-[#0D1013] p-3"
+                  className="flex cursor-pointer items-center gap-3 rounded-xl border border-[#C8CBD0]/10 bg-[#0D1013] p-3 transition hover:border-[#C8CBD0]/20"
                 >
                   <input
                     type="color"
                     value={(brand[field] as string) || '#000000'}
                     onChange={(e) => update(field, e.target.value)}
-                    className="h-10 w-10 cursor-pointer rounded-lg border-0 bg-transparent"
+                    className="h-10 w-10 cursor-pointer rounded-lg border-0 bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D6A84F]"
                   />
 
-                  <div className="min-w-0">
-                    <p className="text-xs font-medium text-[#C8CBD0]">
+                  <div className="min-w-0 flex-1">
+                    <span className="block text-xs font-medium text-[#C8CBD0]">
                       {label}
-                    </p>
-                    <p className="mt-0.5 font-mono text-xs text-[#8C9299]">
+                    </span>
+                    <span className="mt-0.5 block font-mono text-xs text-[#8C9299]">
                       {brand[field] as string}
-                    </p>
+                    </span>
                   </div>
-                </div>
+                </label>
               ))}
             </div>
           </section>
