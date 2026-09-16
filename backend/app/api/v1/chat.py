@@ -15,11 +15,11 @@ from typing import AsyncGenerator
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
 from app.models.bot import Bot
-from app.models.brand import BrandSettings
 from app.schemas.chat import ChatRequest, ChatResponse, SourceRef
 from app.services.rag import RAGRequest, chat_with_rag, stream_chat_with_rag
 
@@ -34,7 +34,13 @@ async def _get_ready_bot(bot_id: uuid.UUID, db: AsyncSession) -> Bot:
     Raises HTTP 404 if the bot does not exist.
     Raises HTTP 409 if the bot has not finished indexing yet.
     """
-    result = await db.execute(select(Bot).where(Bot.id == bot_id))
+    # ⚡ OPTIMIZATION: Eagerly load brand_settings using joinedload.
+    # This reduces DB queries from 2-3 down to 1 per chat request, eliminating an N+1 query pattern.
+    result = await db.execute(
+        select(Bot)
+        .options(joinedload(Bot.brand_settings))
+        .where(Bot.id == bot_id)
+    )
     bot = result.scalar_one_or_none()
     if not bot:
         raise HTTPException(
@@ -50,20 +56,6 @@ async def _get_ready_bot(bot_id: uuid.UUID, db: AsyncSession) -> Bot:
             },
         )
     return bot
-
-
-async def _get_bot_name(bot_id: uuid.UUID, db: AsyncSession) -> str:
-    """Fetch the company_name from brand_settings (fallback to bot name)."""
-    result = await db.execute(
-        select(BrandSettings).where(BrandSettings.bot_id == bot_id)
-    )
-    brand = result.scalar_one_or_none()
-    if brand and brand.company_name:
-        return brand.company_name
-
-    result2 = await db.execute(select(Bot).where(Bot.id == bot_id))
-    bot = result2.scalar_one_or_none()
-    return bot.name if bot else "the website assistant"
 
 
 # ---------------------------------------------------------------------------
@@ -82,7 +74,11 @@ async def chat(
     The bot must be in READY or READY_WITH_WARNINGS status to accept requests.
     """
     bot = await _get_ready_bot(req.bot_id, db)
-    bot_name = await _get_bot_name(req.bot_id, db)
+    bot_name = (
+        bot.brand_settings.company_name
+        if bot.brand_settings and bot.brand_settings.company_name
+        else bot.name
+    )
 
     rag_request = RAGRequest(
         bot_id=req.bot_id,
@@ -123,7 +119,11 @@ async def chat_stream(
         event: error  → data: {"code": "...", "message": "..."}
     """
     bot = await _get_ready_bot(req.bot_id, db)
-    bot_name = await _get_bot_name(req.bot_id, db)
+    bot_name = (
+        bot.brand_settings.company_name
+        if bot.brand_settings and bot.brand_settings.company_name
+        else bot.name
+    )
 
     rag_request = RAGRequest(
         bot_id=req.bot_id,

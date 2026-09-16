@@ -1,3 +1,6 @@
 ## 2024-05-19 - Concurrent SQLAlchemy Async Queries
 **Learning:** A single `AsyncSession` injected into a FastAPI route cannot execute multiple queries concurrently via `asyncio.gather()`. It throws an `IllegalStateChangeError`.
 **Action:** When parallelizing multiple read-only queries in FastAPI analytics endpoints, import `AsyncSessionLocal` and spawn separate context managers (`async with AsyncSessionLocal():`) for each query inside a task wrapper, then gather those tasks.
+## 2024-05-19 - N+1 Queries in FastAPI / SQLAlchemy chat endpoints
+**Learning:** The public chat endpoints (`/api/chat` and `/api/chat/stream`) were executing 2-3 separate queries to fetch a `Bot` and its `brand_settings`. In SQLAlchemy with FastAPI dependencies, we can eagerly load relationships using `joinedload` to squash these into a single database hit. Additionally, dead fallback code logic in subsequent queries can lead to unnecessary queries if not carefully reviewed.
+**Action:** When querying entities that have commonly-accessed 1:1 relationships (like Bot and BrandSettings), use `.options(joinedload(Model.relation))` to prevent multiple sequential database calls on the hot path (like chat endpoints).
