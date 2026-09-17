@@ -228,6 +228,7 @@ export default function BrandingPage() {
                     value={(brand[field] as string) || '#000000'}
                     onChange={(e) => update(field, e.target.value)}
                     className="h-10 w-10 cursor-pointer rounded-lg border-0 bg-transparent"
+                    aria-label={`Select ${label.toLowerCase()} color`}
                   />
 
                   <div className="min-w-0">
