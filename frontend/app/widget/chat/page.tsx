@@ -394,7 +394,7 @@ function WidgetChatContent() {
           <span className="text-[10px] opacity-60 hidden sm:block">Powered by EmbedIQ</span>
           <button
             onClick={handleClose}
-            className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/20 transition-colors"
+            className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/20 transition-colors focus-visible:outline-none focus-visible:bg-white/20 focus-visible:ring-2 focus-visible:ring-white/50"
             aria-label="Close chat"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -502,7 +502,7 @@ function WidgetChatContent() {
                     href={src.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="block text-xs px-2.5 py-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 transition-colors truncate shadow-sm"
+                    className="block text-xs px-2.5 py-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 transition-colors truncate shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
                     style={{ color: pc }}
                     title={src.url}
                   >
@@ -534,7 +534,7 @@ function WidgetChatContent() {
         style={{ borderColor: '#e2e8f0' }}
       >
         <div
-          className="flex items-center gap-2 rounded-2xl border px-3 py-2.5 bg-white shadow-sm transition-all focus-within:shadow-md"
+          className="flex items-center gap-2 rounded-2xl border px-3 py-2.5 bg-white shadow-sm transition-all focus-within:shadow-md focus-within:ring-2 focus-within:ring-slate-200"
           style={{ borderColor: '#dbe3ec' }}
         >
           <input
@@ -553,7 +553,7 @@ function WidgetChatContent() {
             onClick={sendMessage}
             disabled={!input.trim() || loading}
             aria-label="Send message"
-            className="shrink-0 w-9 h-9 flex items-center justify-center rounded-xl transition-all hover:scale-[1.03] active:scale-[0.97] disabled:opacity-40 disabled:hover:scale-100"
+            className="shrink-0 w-9 h-9 flex items-center justify-center rounded-xl transition-all hover:scale-[1.03] active:scale-[0.97] disabled:opacity-40 disabled:hover:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-slate-400"
             style={{ background: pc, color: '#fff' }}
           >
             {loading ? (
