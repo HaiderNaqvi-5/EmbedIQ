@@ -10,7 +10,6 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.db.session import AsyncSessionLocal
@@ -167,46 +166,26 @@ async def get_analytics(
         .group_by(func.date(Message.created_at))
     )
 
-    conversation_count = (
-        select(func.count(Conversation.id))
-        .where(Conversation.bot_id == Bot.id)
-        .correlate(Bot)
-        .scalar_subquery()
-    )
-
-    message_count = (
-        select(func.count(Message.id))
-        .join(
-            Conversation,
-            Message.conversation_id == Conversation.id,
-        )
-        .where(Conversation.bot_id == Bot.id)
-        .correlate(Bot)
-        .scalar_subquery()
-    )
-
-    last_activity = (
-        select(func.max(Message.created_at))
-        .join(
-            Conversation,
-            Message.conversation_id == Conversation.id,
-        )
-        .where(Conversation.bot_id == Bot.id)
-        .correlate(Bot)
-        .scalar_subquery()
-    )
-
     q_bot_rows = (
         select(
             Bot.id,
             Bot.name,
             Bot.website_url,
             Bot.status,
-            conversation_count.label("conversation_count"),
-            message_count.label("message_count"),
-            last_activity.label("last_activity"),
+            func.count(func.distinct(Conversation.id)).label("conversation_count"),
+            func.count(Message.id).label("message_count"),
+            func.max(Message.created_at).label("last_activity"),
         )
+        .outerjoin(Conversation, Conversation.bot_id == Bot.id)
+        .outerjoin(Message, Message.conversation_id == Conversation.id)
         .where(Bot.user_id == user_id)
+        .group_by(
+            Bot.id,
+            Bot.name,
+            Bot.website_url,
+            Bot.status,
+            Bot.created_at,
+        )
         .order_by(Bot.created_at.desc())
     )
 
