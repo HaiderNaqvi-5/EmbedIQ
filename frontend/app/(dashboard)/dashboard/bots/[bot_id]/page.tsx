@@ -277,7 +277,7 @@ export default function BotDetailPage() {
             <button
               onClick={() => fetchBot(true)}
               disabled={refreshing}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[#C8CBD0]/15 bg-[#1A1D21] px-4 text-sm font-medium text-[#C8CBD0] transition hover:border-[#D6A84F]/40 hover:text-[#F0C76A] disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[#C8CBD0]/15 bg-[#1A1D21] px-4 text-sm font-medium text-[#C8CBD0] transition hover:border-[#D6A84F]/40 hover:text-[#F0C76A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D6A84F]/50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <RefreshCw
                 className={`h-4 w-4 ${

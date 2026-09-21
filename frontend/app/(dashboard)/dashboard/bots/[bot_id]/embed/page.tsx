@@ -94,7 +94,7 @@ export default function EmbedPage() {
 
               <button
                 onClick={copy}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-[#C8CBD0]/10 bg-[#1A1D21] px-2.5 py-1.5 text-xs font-medium text-[#C8CBD0] transition hover:border-[#D6A84F]/30 hover:text-[#F0C76A]"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[#C8CBD0]/10 bg-[#1A1D21] px-2.5 py-1.5 text-xs font-medium text-[#C8CBD0] transition hover:border-[#D6A84F]/30 hover:text-[#F0C76A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D6A84F]/50"
               >
                 {copied ? (
                   <CheckCircle2 className="h-3.5 w-3.5" />
