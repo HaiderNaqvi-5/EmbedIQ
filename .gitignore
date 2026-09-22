@@ -14,7 +14,7 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+/lib/
 lib64/
 parts/
 sdist/
@@ -78,4 +78,3 @@ EmbedIQ-zip/
 # Local Environment Variants
 backend/.env
 frontend/.env
-

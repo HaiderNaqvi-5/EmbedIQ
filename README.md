@@ -11,6 +11,24 @@ The repository contains a FastAPI backend, a Next.js dashboard and widget, and
 PostgreSQL/pgvector plus Redis services for persistence, vector search, and
 background jobs.
 
+## Product preview
+
+### Website assistant overview
+
+![Cyberify assistant overview](docs/screenshots/cyberify-bot.png)
+
+### Indexed knowledge base
+
+![Cyberify knowledge base](docs/screenshots/cyberify-knowledge.png)
+
+### Conversation analytics
+
+![Cyberify conversation analytics](docs/screenshots/cyberify-analytics.png)
+
+### Widget guardrail check
+
+![Cyberify widget guardrail check](docs/screenshots/cyberify-guardrails.png)
+
 ## Repository layout
 
 | Path | Purpose |
@@ -86,6 +104,14 @@ celery -A app.jobs.celery_app worker --loglevel=info -c 4
 The API, dashboard, widget, crawler, retrieval service, and background worker
 live in this repository so the complete local development workflow is visible
 in one place.
+
+## Cyberify validation run
+
+EmbedIQ was exercised against `https://www.cyberify.co/` with the configured
+50-page crawl cap: all 50 pages completed successfully and produced 81 indexed
+knowledge chunks. A Cyberify services and computer-vision question returned a
+grounded answer with source links, while an unrelated question ("What is the
+capital of France?") was rejected with the website-scoped fallback.
 
 ## Testing
 
