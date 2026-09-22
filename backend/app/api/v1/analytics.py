@@ -10,7 +10,6 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.db.session import AsyncSessionLocal
@@ -237,34 +236,44 @@ async def get_analytics(
         .limit(10)
     )
 
-    # Execute all queries concurrently
+    # ⚡ Bolt Optimization: Combine 8 scalar counts into a single query
+    # to prevent DB connection pool exhaustion and reduce overhead.
+    q_combined_scalars = select(
+        q_total_bots.scalar_subquery().label("total_bots"),
+        q_total_conversations.scalar_subquery().label("total_conversations"),
+        q_total_messages.scalar_subquery().label("total_messages"),
+        q_user_questions.scalar_subquery().label("user_questions"),
+        q_assistant_responses.scalar_subquery().label("assistant_responses"),
+        q_conversations_today.scalar_subquery().label("conversations_today"),
+        q_messages_today.scalar_subquery().label("messages_today"),
+        q_active_bots.scalar_subquery().label("active_bots"),
+    )
+
+    # Execute all queries concurrently (reduced from 12 separate sessions to 5)
     (
-        total_bots,
-        total_conversations,
-        total_messages,
-        user_questions,
-        assistant_responses,
-        conversations_today,
-        messages_today,
-        active_bots,
+        scalar_results,
         conversation_activity_result,
         message_activity_result,
         bot_rows,
         recent_rows,
     ) = await asyncio.gather(
-        _execute_scalar(q_total_bots),
-        _execute_scalar(q_total_conversations),
-        _execute_scalar(q_total_messages),
-        _execute_scalar(q_user_questions),
-        _execute_scalar(q_assistant_responses),
-        _execute_scalar(q_conversations_today),
-        _execute_scalar(q_messages_today),
-        _execute_scalar(q_active_bots),
+        _execute_all(q_combined_scalars),
         _execute_all(q_conversation_activity),
         _execute_all(q_message_activity),
         _execute_all(q_bot_rows),
         _execute_all(q_recent_rows),
     )
+
+    scalars = scalar_results[0] if scalar_results else None
+
+    total_bots = scalars.total_bots if scalars else 0
+    total_conversations = scalars.total_conversations if scalars else 0
+    total_messages = scalars.total_messages if scalars else 0
+    user_questions = scalars.user_questions if scalars else 0
+    assistant_responses = scalars.assistant_responses if scalars else 0
+    conversations_today = scalars.conversations_today if scalars else 0
+    messages_today = scalars.messages_today if scalars else 0
+    active_bots = scalars.active_bots if scalars else 0
 
     # --------------------------------------------------------
     # Process results
