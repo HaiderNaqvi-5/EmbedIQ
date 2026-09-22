@@ -68,6 +68,7 @@ Thumbs.db
 backend-backup/
 frontend-backup/
 EmbedIQ-zip/
+/Doc & prd/
 
 # Temporary Backup Files
 *.backup

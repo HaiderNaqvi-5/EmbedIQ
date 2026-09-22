@@ -36,7 +36,6 @@ background jobs.
 | `backend/` | FastAPI API, database models, migrations, crawler, RAG, and Celery tasks |
 | `frontend/` | Next.js dashboard, chat widget, and browser embed script |
 | `docs/` | Maintainer-oriented architecture and development notes |
-| `Doc & prd/` | Product requirements, implementation notes, and design sessions |
 | `docker-compose.yml` | Local PostgreSQL/pgvector and Redis development services |
 | `.env.example` | Configuration template; copy it to `.env` locally |
 
@@ -134,9 +133,6 @@ npm run build
 - [Backend guide](backend/README.md)
 - [Frontend guide](frontend/README.md)
 - [Architecture and development notes](docs/README.md)
-- [Product requirements](Doc%20%26%20prd/PRD.md)
-- [Implementation baseline](Doc%20%26%20prd/implementation.md)
-- [Project rules](Doc%20%26%20prd/PROJECT_RULES.md)
 
 ## Security and repository hygiene
 
