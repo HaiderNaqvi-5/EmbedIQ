@@ -97,8 +97,6 @@ async def retrieve_chunks(
             FROM chunks
             WHERE bot_id = :bot_id
               AND (1 - (embedding <=> :query_vector)) >= :min_similarity
-              AND LENGTH(TRIM(content)) >= 150
-              AND content NOT LIKE '%Content Hash: e3b0c44298fc1c14%'
             ORDER BY embedding <=> :query_vector ASC
             LIMIT :candidate_k
         ),

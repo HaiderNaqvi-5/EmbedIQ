@@ -801,7 +801,7 @@ def _extract_logo(
                     str(link["href"]),
                     base_url,
                 ),
-                0.50,
+                0.85,
             )
 
     return None, 0.0
@@ -1150,6 +1150,7 @@ def extract_branding(
     # -------------------------------------------------------------------
 
     embedded_css_parts: list[str] = []
+    has_primary_css_variable = False
 
     for style_tag in soup.find_all(
         "style"
@@ -1184,6 +1185,7 @@ def extract_branding(
             )
 
             if normalized:
+                has_primary_css_variable = True
                 color_candidates.extend(
                     [normalized] * 10
                 )
@@ -1256,7 +1258,9 @@ def extract_branding(
     confidence[
         "primary_color"
     ] = (
-        0.75
+        0.85
+        if primary_color and has_primary_css_variable
+        else 0.75
         if primary_color
         else 0.0
     )

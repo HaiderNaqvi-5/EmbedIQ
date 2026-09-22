@@ -254,7 +254,6 @@ class TestAT003_Branding:
 # AT-004: SSRF Guard
 # ---------------------------------------------------------------------------
 
-@pytest.mark.asyncio
 class TestAT004_SSRFGuard:
     """AT-004: SSRF validation blocks private/reserved URLs."""
 
@@ -299,7 +298,6 @@ class TestAT004_SSRFGuard:
 # AT-005: Chunker — Page Boundary Enforcement
 # ---------------------------------------------------------------------------
 
-@pytest.mark.asyncio
 class TestAT005_Chunker:
     """AT-005: Chunker never merges content across page boundaries."""
 
@@ -422,7 +420,6 @@ failed_pages: 0
 # AT-006: URL Normalizer
 # ---------------------------------------------------------------------------
 
-@pytest.mark.asyncio
 class TestAT006_URLNormalizer:
     """AT-006: URL normalizer strips tracking params and handles origins correctly."""
 

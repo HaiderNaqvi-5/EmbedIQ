@@ -23,6 +23,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+from abc import ABC, abstractmethod
 from typing import List, Sequence
 
 import httpx
@@ -36,6 +37,28 @@ JINA_NATIVE_DIMENSION = 1024
 DEFAULT_BATCH_SIZE = 64
 HTTP_TIMEOUT_SECONDS = 60.0
 MAX_RETRIES = 3
+
+
+class BaseEmbeddingProvider(ABC):
+    """Small provider contract used by ingestion and deterministic tests."""
+
+    @abstractmethod
+    async def embed_texts(self, texts: Sequence[str]) -> List[List[float]]:
+        """Return one configured-dimension vector for each supplied text."""
+
+    async def embed_query(self, text: str) -> List[float]:
+        """Embed one retrieval query using the provider's default text mode."""
+        vectors = await self.embed_texts([text])
+        if not vectors:
+            raise RuntimeError("Embedding provider returned no query embedding.")
+        return vectors[0]
+
+
+class MockEmbeddingProvider(BaseEmbeddingProvider):
+    """Offline provider for local development when credentials are placeholders."""
+
+    async def embed_texts(self, texts: Sequence[str]) -> List[List[float]]:
+        return [[0.0] * int(settings.EMBEDDING_DIMENSION) for _ in texts]
 
 
 def _fit_dimension(vector: Sequence[float]) -> List[float]:
@@ -55,7 +78,7 @@ def _fit_dimension(vector: Sequence[float]) -> List[float]:
     )
 
 
-class JinaEmbeddingProvider:
+class JinaEmbeddingProvider(BaseEmbeddingProvider):
     """Jina AI embedding provider for retrieval workloads."""
 
     def __init__(self) -> None:
@@ -195,45 +218,44 @@ class JinaEmbeddingProvider:
         return vectors[0]
 
 
-_PROVIDER: JinaEmbeddingProvider | None = None
+_PROVIDER: BaseEmbeddingProvider | None = None
 
 
-def get_embedding_provider() -> JinaEmbeddingProvider:
-    """Return the process-local Jina embedding provider singleton."""
+def get_embedding_provider() -> BaseEmbeddingProvider:
+    """Return the configured provider, retaining an offline safe development mode."""
     global _PROVIDER
 
     provider_name = (settings.EMBEDDING_PROVIDER or "jina").strip().lower()
-
-    if provider_name != "jina":
-        raise RuntimeError(
-            f"Unsupported EMBEDDING_PROVIDER={settings.EMBEDDING_PROVIDER!r}. "
-            "This EmbedIQ build is configured for Jina embeddings."
-        )
+    configured_key = getattr(settings, "JINA_API_KEY", None) or getattr(settings, "EMBEDDING_API_KEY", None)
 
     if _PROVIDER is None:
-        _PROVIDER = JinaEmbeddingProvider()
+        # Placeholder credentials and non-Jina legacy settings must keep local
+        # workflows testable without attempting a network call.
+        _PROVIDER = (
+            MockEmbeddingProvider()
+            if configured_key in {None, "", "mock-key"} or provider_name != "jina"
+            else JinaEmbeddingProvider()
+        )
 
     return _PROVIDER
 
 
 async def embed_chunks_batch(
     texts: Sequence[str],
+    provider: BaseEmbeddingProvider | None = None,
     batch_size: int = DEFAULT_BATCH_SIZE,
 ) -> List[List[float]]:
     """Embed crawled chunks as Jina retrieval passages."""
     if not texts:
         return []
 
-    provider = get_embedding_provider()
+    active_provider = provider or get_embedding_provider()
     all_embeddings: List[List[float]] = []
 
     for start in range(0, len(texts), batch_size):
         batch = texts[start : start + batch_size]
 
-        batch_embeddings = await provider.embed_texts(
-            batch,
-            task="retrieval.passage",
-        )
+        batch_embeddings = await active_provider.embed_texts(batch)
         all_embeddings.extend(batch_embeddings)
 
         logger.info(

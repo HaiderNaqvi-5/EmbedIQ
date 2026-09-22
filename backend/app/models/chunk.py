@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Optional, Dict, Any, List, TYPE_CHECKING
 from sqlalchemy import String, Text, Integer, DateTime, ForeignKey, Index
 from sqlalchemy.dialects.postgresql import UUID, JSONB
@@ -7,6 +7,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from pgvector.sqlalchemy import Vector
 
 from app.db.base import Base
+
+utc_now = lambda: datetime.now(UTC)
 
 if TYPE_CHECKING:
     from app.models.bot import Bot
@@ -80,7 +82,7 @@ class Chunk(Base):
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=datetime.utcnow,
+        default=utc_now,
         nullable=False,
     )
 

@@ -1,5 +1,8 @@
 # EmbedIQ
 
+> Turn a website into a searchable knowledge base and an embeddable AI chat
+> experience—without building a chatbot stack from scratch.
+
 EmbedIQ is an embeddable, website-specific RAG chatbot platform. It crawls a
 website, builds a searchable knowledge base, and exposes a chat widget that
 answers questions using the site's content.
@@ -71,6 +74,18 @@ For background crawling and indexing, start a worker from `backend/`:
 ```bash
 celery -A app.jobs.celery_app worker --loglevel=info -c 4
 ```
+
+## Product flow
+
+1. Create a brand and chatbot configuration in the dashboard.
+2. Crawl a site or add documents to build a scoped knowledge base.
+3. Index content into pgvector and use retrieval-grounded answers in the widget.
+4. Embed the generated script on the target site and review conversations from
+   the dashboard.
+
+The API, dashboard, widget, crawler, retrieval service, and background worker
+live in this repository so the complete local development workflow is visible
+in one place.
 
 ## Testing
 

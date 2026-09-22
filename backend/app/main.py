@@ -107,7 +107,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     return create_error_response(
         code="VALIDATION_ERROR",
         message=f"Request validation failed: {error_msg}",
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
     )
 
 
