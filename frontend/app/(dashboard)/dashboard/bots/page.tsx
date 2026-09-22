@@ -13,6 +13,7 @@ import {
   XCircle,
   Activity,
   Search,
+  X,
 } from 'lucide-react';
 import { apiRequest } from '@/lib/api';
 
@@ -221,8 +222,20 @@ export default function BotsPage() {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search bots by name, website or status..."
-            className="w-full rounded-xl border border-[#C8CBD0]/10 bg-[#111418] py-2.5 pl-10 pr-4 text-sm text-[#F5F5F3] outline-none transition placeholder:text-[#5F656D] focus:border-[#D6A84F]/40 focus:ring-2 focus:ring-[#D6A84F]/10"
+            aria-label="Search bots"
+            className="w-full rounded-xl border border-[#C8CBD0]/10 bg-[#111418] py-2.5 pl-10 pr-10 text-sm text-[#F5F5F3] outline-none transition placeholder:text-[#5F656D] focus:border-[#D6A84F]/40 focus:ring-2 focus:ring-[#D6A84F]/10"
           />
+
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch('')}
+              aria-label="Clear search"
+              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-[#5F656D] transition hover:bg-[#1A1D21] hover:text-[#C8CBD0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D6A84F]/50"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
       )}
 
