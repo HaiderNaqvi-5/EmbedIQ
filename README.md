@@ -11,10 +11,6 @@ The repository contains a FastAPI backend, a Next.js dashboard and widget, and
 PostgreSQL/pgvector plus Redis services for persistence, vector search, and
 background jobs.
 
-## Product preview
-
-![EmbedIQ sign-in screen](docs/screenshots/sign-in.png)
-
 ## Repository layout
 
 | Path | Purpose |
