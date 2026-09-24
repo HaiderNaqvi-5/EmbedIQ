@@ -225,15 +225,16 @@ export default function BrandingPage() {
                 >
                   <input
                     type="color"
+                    id={field}
                     value={(brand[field] as string) || '#000000'}
                     onChange={(e) => update(field, e.target.value)}
                     className="h-10 w-10 cursor-pointer rounded-lg border-0 bg-transparent"
                   />
 
                   <div className="min-w-0">
-                    <p className="text-xs font-medium text-[#C8CBD0]">
+                    <label htmlFor={field} className="block text-xs font-medium text-[#C8CBD0] cursor-pointer">
                       {label}
-                    </p>
+                    </label>
                     <p className="mt-0.5 font-mono text-xs text-[#8C9299]">
                       {brand[field] as string}
                     </p>
