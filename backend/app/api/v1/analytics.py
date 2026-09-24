@@ -6,18 +6,16 @@ Every query is scoped through Bot.user_id to prevent cross-user analytics access
 """
 
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.db.session import AsyncSessionLocal
 from app.models.bot import Bot
 from app.models.conversation import Conversation, Message
 from app.models.user import User
-
 
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
@@ -44,7 +42,7 @@ async def get_analytics(
 
     user_id = current_user.id
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     today_start = now.replace(
         hour=0,
         minute=0,
@@ -64,77 +62,43 @@ async def get_analytics(
             result = await session.execute(query)
             return result.all()
 
-    # Define all queries
-    q_total_bots = select(func.count(Bot.id)).where(Bot.user_id == user_id)
+    # ⚡ Bolt Optimization: Combine scalar counts into a single query to prevent DB connection pool exhaustion.
+    # Previously, 8 separate scalar queries executed concurrently consumed 8 distinct connections.
+    # Combining them via scalar_subquery().label() executes them in one trip to the DB, saving 7 connections per request.
+    q_combined_scalars = select(
+        select(func.count(Bot.id)).where(Bot.user_id == user_id).scalar_subquery().label("total_bots"),
 
-    q_total_conversations = (
         select(func.count(Conversation.id))
         .join(Bot, Conversation.bot_id == Bot.id)
-        .where(Bot.user_id == user_id)
-    )
+        .where(Bot.user_id == user_id).scalar_subquery().label("total_conversations"),
 
-    q_total_messages = (
         select(func.count(Message.id))
-        .join(
-            Conversation,
-            Message.conversation_id == Conversation.id,
-        )
+        .join(Conversation, Message.conversation_id == Conversation.id)
         .join(Bot, Conversation.bot_id == Bot.id)
-        .where(Bot.user_id == user_id)
-    )
+        .where(Bot.user_id == user_id).scalar_subquery().label("total_messages"),
 
-    q_user_questions = (
         select(func.count(Message.id))
-        .join(
-            Conversation,
-            Message.conversation_id == Conversation.id,
-        )
+        .join(Conversation, Message.conversation_id == Conversation.id)
         .join(Bot, Conversation.bot_id == Bot.id)
-        .where(
-            Bot.user_id == user_id,
-            Message.role == "user",
-        )
-    )
+        .where(Bot.user_id == user_id, Message.role == "user").scalar_subquery().label("user_questions"),
 
-    q_assistant_responses = (
         select(func.count(Message.id))
-        .join(
-            Conversation,
-            Message.conversation_id == Conversation.id,
-        )
+        .join(Conversation, Message.conversation_id == Conversation.id)
         .join(Bot, Conversation.bot_id == Bot.id)
-        .where(
-            Bot.user_id == user_id,
-            Message.role == "assistant",
-        )
-    )
+        .where(Bot.user_id == user_id, Message.role == "assistant").scalar_subquery().label("assistant_responses"),
 
-    q_conversations_today = (
         select(func.count(Conversation.id))
         .join(Bot, Conversation.bot_id == Bot.id)
-        .where(
-            Bot.user_id == user_id,
-            Conversation.created_at >= today_start,
-        )
-    )
+        .where(Bot.user_id == user_id, Conversation.created_at >= today_start).scalar_subquery().label("conversations_today"),
 
-    q_messages_today = (
         select(func.count(Message.id))
-        .join(
-            Conversation,
-            Message.conversation_id == Conversation.id,
-        )
+        .join(Conversation, Message.conversation_id == Conversation.id)
         .join(Bot, Conversation.bot_id == Bot.id)
-        .where(
-            Bot.user_id == user_id,
-            Message.created_at >= today_start,
-        )
-    )
+        .where(Bot.user_id == user_id, Message.created_at >= today_start).scalar_subquery().label("messages_today"),
 
-    q_active_bots = (
         select(func.count(func.distinct(Conversation.bot_id)))
         .join(Bot, Conversation.bot_id == Bot.id)
-        .where(Bot.user_id == user_id)
+        .where(Bot.user_id == user_id).scalar_subquery().label("active_bots")
     )
 
     q_conversation_activity = (
@@ -237,29 +201,20 @@ async def get_analytics(
         .limit(10)
     )
 
+    async def _execute_combined_scalars(query):
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(query)
+            return result.one()
+
     # Execute all queries concurrently
     (
-        total_bots,
-        total_conversations,
-        total_messages,
-        user_questions,
-        assistant_responses,
-        conversations_today,
-        messages_today,
-        active_bots,
+        scalars_result,
         conversation_activity_result,
         message_activity_result,
         bot_rows,
         recent_rows,
     ) = await asyncio.gather(
-        _execute_scalar(q_total_bots),
-        _execute_scalar(q_total_conversations),
-        _execute_scalar(q_total_messages),
-        _execute_scalar(q_user_questions),
-        _execute_scalar(q_assistant_responses),
-        _execute_scalar(q_conversations_today),
-        _execute_scalar(q_messages_today),
-        _execute_scalar(q_active_bots),
+        _execute_combined_scalars(q_combined_scalars),
         _execute_all(q_conversation_activity),
         _execute_all(q_message_activity),
         _execute_all(q_bot_rows),
@@ -269,6 +224,15 @@ async def get_analytics(
     # --------------------------------------------------------
     # Process results
     # --------------------------------------------------------
+
+    total_bots = scalars_result.total_bots
+    total_conversations = scalars_result.total_conversations
+    total_messages = scalars_result.total_messages
+    user_questions = scalars_result.user_questions
+    assistant_responses = scalars_result.assistant_responses
+    conversations_today = scalars_result.conversations_today
+    messages_today = scalars_result.messages_today
+    active_bots = scalars_result.active_bots
 
     average_messages_per_conversation = (
         round(total_messages / total_conversations, 2)
