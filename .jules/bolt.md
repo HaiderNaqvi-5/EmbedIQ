@@ -1,3 +1,3 @@
-## 2024-05-19 - Concurrent SQLAlchemy Async Queries
-**Learning:** A single `AsyncSession` injected into a FastAPI route cannot execute multiple queries concurrently via `asyncio.gather()`. It throws an `IllegalStateChangeError`.
-**Action:** When parallelizing multiple read-only queries in FastAPI analytics endpoints, import `AsyncSessionLocal` and spawn separate context managers (`async with AsyncSessionLocal():`) for each query inside a task wrapper, then gather those tasks.
+## 2024-05-24 - Database Connection Pool Exhaustion in Analytics Endpoint
+**Learning:** Combining multiple independent scalar queries (e.g. `func.count()`) that were previously executed concurrently via `asyncio.gather()` into a single query using `scalar_subquery().label()` significantly reduces database connection usage.
+**Action:** When gathering multiple counts or simple scalars from the database within an endpoint, combine them into one `select` rather than spinning up concurrent `AsyncSession`s for each.
