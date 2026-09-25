@@ -10,7 +10,6 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.db.session import AsyncSessionLocal
@@ -54,26 +53,23 @@ async def get_analytics(
 
     seven_days_start = today_start - timedelta(days=6)
 
-    async def _execute_scalar(query):
-        async with AsyncSessionLocal() as session:
-            result = await session.execute(query)
-            return result.scalar_one()
-
     async def _execute_all(query):
         async with AsyncSessionLocal() as session:
             result = await session.execute(query)
             return result.all()
 
     # Define all queries
-    q_total_bots = select(func.count(Bot.id)).where(Bot.user_id == user_id)
 
-    q_total_conversations = (
+    # Combine 8 scalar counts into a single query to prevent DB connection pool exhaustion
+    # instead of spawning 8 separate sessions in asyncio.gather
+    q_summary_counts = select(
+        select(func.count(Bot.id)).where(Bot.user_id == user_id).scalar_subquery().label("total_bots"),
+
         select(func.count(Conversation.id))
         .join(Bot, Conversation.bot_id == Bot.id)
         .where(Bot.user_id == user_id)
-    )
+        .scalar_subquery().label("total_conversations"),
 
-    q_total_messages = (
         select(func.count(Message.id))
         .join(
             Conversation,
@@ -81,9 +77,8 @@ async def get_analytics(
         )
         .join(Bot, Conversation.bot_id == Bot.id)
         .where(Bot.user_id == user_id)
-    )
+        .scalar_subquery().label("total_messages"),
 
-    q_user_questions = (
         select(func.count(Message.id))
         .join(
             Conversation,
@@ -94,9 +89,8 @@ async def get_analytics(
             Bot.user_id == user_id,
             Message.role == "user",
         )
-    )
+        .scalar_subquery().label("user_questions"),
 
-    q_assistant_responses = (
         select(func.count(Message.id))
         .join(
             Conversation,
@@ -107,18 +101,16 @@ async def get_analytics(
             Bot.user_id == user_id,
             Message.role == "assistant",
         )
-    )
+        .scalar_subquery().label("assistant_responses"),
 
-    q_conversations_today = (
         select(func.count(Conversation.id))
         .join(Bot, Conversation.bot_id == Bot.id)
         .where(
             Bot.user_id == user_id,
             Conversation.created_at >= today_start,
         )
-    )
+        .scalar_subquery().label("conversations_today"),
 
-    q_messages_today = (
         select(func.count(Message.id))
         .join(
             Conversation,
@@ -129,12 +121,12 @@ async def get_analytics(
             Bot.user_id == user_id,
             Message.created_at >= today_start,
         )
-    )
+        .scalar_subquery().label("messages_today"),
 
-    q_active_bots = (
         select(func.count(func.distinct(Conversation.bot_id)))
         .join(Bot, Conversation.bot_id == Bot.id)
         .where(Bot.user_id == user_id)
+        .scalar_subquery().label("active_bots")
     )
 
     q_conversation_activity = (
@@ -239,32 +231,28 @@ async def get_analytics(
 
     # Execute all queries concurrently
     (
-        total_bots,
-        total_conversations,
-        total_messages,
-        user_questions,
-        assistant_responses,
-        conversations_today,
-        messages_today,
-        active_bots,
+        summary_counts,
         conversation_activity_result,
         message_activity_result,
         bot_rows,
         recent_rows,
     ) = await asyncio.gather(
-        _execute_scalar(q_total_bots),
-        _execute_scalar(q_total_conversations),
-        _execute_scalar(q_total_messages),
-        _execute_scalar(q_user_questions),
-        _execute_scalar(q_assistant_responses),
-        _execute_scalar(q_conversations_today),
-        _execute_scalar(q_messages_today),
-        _execute_scalar(q_active_bots),
+        _execute_all(q_summary_counts),
         _execute_all(q_conversation_activity),
         _execute_all(q_message_activity),
         _execute_all(q_bot_rows),
         _execute_all(q_recent_rows),
     )
+
+    counts_row = summary_counts[0]
+    total_bots = counts_row.total_bots or 0
+    total_conversations = counts_row.total_conversations or 0
+    total_messages = counts_row.total_messages or 0
+    user_questions = counts_row.user_questions or 0
+    assistant_responses = counts_row.assistant_responses or 0
+    conversations_today = counts_row.conversations_today or 0
+    messages_today = counts_row.messages_today or 0
+    active_bots = counts_row.active_bots or 0
 
     # --------------------------------------------------------
     # Process results
