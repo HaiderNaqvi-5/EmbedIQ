@@ -1,0 +1,3 @@
+## 2026-09-26 - Native Color Input Accessibility
+**Learning:** Native `<input type="color">` elements configured to look like custom swatches often lack obvious focus states. To keep the UI clean while remaining accessible, you can apply focus indicators to the parent container using `focus-within:ring-2`, while maintaining native keyboard operability. Furthermore, labels next to these inputs should explicitly associate using `htmlFor` and have `cursor-pointer` so clicking the text opens the color picker.
+**Action:** When restyling native inputs (especially type="color" or "file"), apply `focus-within` to the parent container for better visual focus states without compromising the design, and always wire up explicit labels.
