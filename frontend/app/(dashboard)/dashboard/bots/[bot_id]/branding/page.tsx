@@ -221,23 +221,24 @@ export default function BrandingPage() {
               {colors.map(({ label, field }) => (
                 <div
                   key={field}
-                  className="flex items-center gap-3 rounded-xl border border-[#C8CBD0]/10 bg-[#0D1013] p-3"
+                  className="flex items-center gap-3 rounded-xl border border-[#C8CBD0]/10 bg-[#0D1013] p-3 transition-shadow focus-within:border-[#D6A84F]/50 focus-within:ring-2 focus-within:ring-[#D6A84F]/10"
                 >
                   <input
+                    id={`color-${field}`}
                     type="color"
                     value={(brand[field] as string) || '#000000'}
                     onChange={(e) => update(field, e.target.value)}
-                    className="h-10 w-10 cursor-pointer rounded-lg border-0 bg-transparent"
+                    className="h-10 w-10 cursor-pointer rounded-lg border-0 bg-transparent outline-none focus-visible:outline-none"
                   />
 
-                  <div className="min-w-0">
+                  <label htmlFor={`color-${field}`} className="min-w-0 cursor-pointer">
                     <p className="text-xs font-medium text-[#C8CBD0]">
                       {label}
                     </p>
                     <p className="mt-0.5 font-mono text-xs text-[#8C9299]">
                       {brand[field] as string}
                     </p>
-                  </div>
+                  </label>
                 </div>
               ))}
             </div>
