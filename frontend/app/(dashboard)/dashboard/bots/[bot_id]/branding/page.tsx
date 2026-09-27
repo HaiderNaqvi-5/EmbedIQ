@@ -144,7 +144,8 @@ export default function BrandingPage() {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#D6A84F] px-4 py-2.5 text-sm font-semibold text-[#080A0D] transition hover:bg-[#F0C76A] disabled:cursor-not-allowed disabled:opacity-50"
+          aria-disabled={saving}
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#D6A84F] px-4 py-2.5 text-sm font-semibold text-[#080A0D] transition hover:bg-[#F0C76A] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-[#D6A84F]/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#111418] outline-none"
         >
           {saving ? (
             <Loader2 className="h-4 w-4 animate-spin" />
