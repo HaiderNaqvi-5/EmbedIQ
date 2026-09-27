@@ -10,7 +10,6 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.db.session import AsyncSessionLocal
@@ -53,11 +52,6 @@ async def get_analytics(
     )
 
     seven_days_start = today_start - timedelta(days=6)
-
-    async def _execute_scalar(query):
-        async with AsyncSessionLocal() as session:
-            result = await session.execute(query)
-            return result.scalar_one()
 
     async def _execute_all(query):
         async with AsyncSessionLocal() as session:
@@ -237,29 +231,36 @@ async def get_analytics(
         .limit(10)
     )
 
+    # ⚡ OPTIMIZATION: Combine 8 separate scalar queries into a single query
+    # Why: Previously, these were executed concurrently via asyncio.gather(),
+    # exhausting up to 8 connections from the database pool per request.
+    # Impact: Reduces database network roundtrips from 8 to 1 and significantly
+    # lowers connection pool contention, improving endpoint scalability.
+    q_combined_scalars = select(
+        q_total_bots.scalar_subquery().label("total_bots"),
+        q_total_conversations.scalar_subquery().label("total_conversations"),
+        q_total_messages.scalar_subquery().label("total_messages"),
+        q_user_questions.scalar_subquery().label("user_questions"),
+        q_assistant_responses.scalar_subquery().label("assistant_responses"),
+        q_conversations_today.scalar_subquery().label("conversations_today"),
+        q_messages_today.scalar_subquery().label("messages_today"),
+        q_active_bots.scalar_subquery().label("active_bots"),
+    )
+
+    async def _execute_combined_scalars(query):
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(query)
+            return result.first()
+
     # Execute all queries concurrently
     (
-        total_bots,
-        total_conversations,
-        total_messages,
-        user_questions,
-        assistant_responses,
-        conversations_today,
-        messages_today,
-        active_bots,
+        scalars_result,
         conversation_activity_result,
         message_activity_result,
         bot_rows,
         recent_rows,
     ) = await asyncio.gather(
-        _execute_scalar(q_total_bots),
-        _execute_scalar(q_total_conversations),
-        _execute_scalar(q_total_messages),
-        _execute_scalar(q_user_questions),
-        _execute_scalar(q_assistant_responses),
-        _execute_scalar(q_conversations_today),
-        _execute_scalar(q_messages_today),
-        _execute_scalar(q_active_bots),
+        _execute_combined_scalars(q_combined_scalars),
         _execute_all(q_conversation_activity),
         _execute_all(q_message_activity),
         _execute_all(q_bot_rows),
@@ -269,6 +270,14 @@ async def get_analytics(
     # --------------------------------------------------------
     # Process results
     # --------------------------------------------------------
+    total_bots = scalars_result.total_bots if scalars_result else 0
+    total_conversations = scalars_result.total_conversations if scalars_result else 0
+    total_messages = scalars_result.total_messages if scalars_result else 0
+    user_questions = scalars_result.user_questions if scalars_result else 0
+    assistant_responses = scalars_result.assistant_responses if scalars_result else 0
+    conversations_today = scalars_result.conversations_today if scalars_result else 0
+    messages_today = scalars_result.messages_today if scalars_result else 0
+    active_bots = scalars_result.active_bots if scalars_result else 0
 
     average_messages_per_conversation = (
         round(total_messages / total_conversations, 2)
