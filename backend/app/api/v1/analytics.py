@@ -10,7 +10,6 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.db.session import AsyncSessionLocal
@@ -54,10 +53,10 @@ async def get_analytics(
 
     seven_days_start = today_start - timedelta(days=6)
 
-    async def _execute_scalar(query):
+    async def _execute_first(query):
         async with AsyncSessionLocal() as session:
             result = await session.execute(query)
-            return result.scalar_one()
+            return result.first()
 
     async def _execute_all(query):
         async with AsyncSessionLocal() as session:
@@ -135,6 +134,17 @@ async def get_analytics(
         select(func.count(func.distinct(Conversation.bot_id)))
         .join(Bot, Conversation.bot_id == Bot.id)
         .where(Bot.user_id == user_id)
+    )
+
+    q_summary = select(
+        q_total_bots.scalar_subquery().label("total_bots"),
+        q_total_conversations.scalar_subquery().label("total_conversations"),
+        q_total_messages.scalar_subquery().label("total_messages"),
+        q_user_questions.scalar_subquery().label("user_questions"),
+        q_assistant_responses.scalar_subquery().label("assistant_responses"),
+        q_conversations_today.scalar_subquery().label("conversations_today"),
+        q_messages_today.scalar_subquery().label("messages_today"),
+        q_active_bots.scalar_subquery().label("active_bots"),
     )
 
     q_conversation_activity = (
@@ -239,52 +249,41 @@ async def get_analytics(
 
     # Execute all queries concurrently
     (
-        total_bots,
-        total_conversations,
-        total_messages,
-        user_questions,
-        assistant_responses,
-        conversations_today,
-        messages_today,
-        active_bots,
+        summary_row,
         conversation_activity_result,
         message_activity_result,
         bot_rows,
         recent_rows,
     ) = await asyncio.gather(
-        _execute_scalar(q_total_bots),
-        _execute_scalar(q_total_conversations),
-        _execute_scalar(q_total_messages),
-        _execute_scalar(q_user_questions),
-        _execute_scalar(q_assistant_responses),
-        _execute_scalar(q_conversations_today),
-        _execute_scalar(q_messages_today),
-        _execute_scalar(q_active_bots),
+        _execute_first(q_summary),
         _execute_all(q_conversation_activity),
         _execute_all(q_message_activity),
         _execute_all(q_bot_rows),
         _execute_all(q_recent_rows),
     )
 
+    total_bots = summary_row.total_bots if summary_row else 0
+    total_conversations = summary_row.total_conversations if summary_row else 0
+    total_messages = summary_row.total_messages if summary_row else 0
+    user_questions = summary_row.user_questions if summary_row else 0
+    assistant_responses = summary_row.assistant_responses if summary_row else 0
+    conversations_today = summary_row.conversations_today if summary_row else 0
+    messages_today = summary_row.messages_today if summary_row else 0
+    active_bots = summary_row.active_bots if summary_row else 0
+
     # --------------------------------------------------------
     # Process results
     # --------------------------------------------------------
 
     average_messages_per_conversation = (
-        round(total_messages / total_conversations, 2)
-        if total_conversations
-        else 0
+        round(total_messages / total_conversations, 2) if total_conversations else 0
     )
 
     conversation_activity = {
-        str(row.day): row.count
-        for row in conversation_activity_result
+        str(row.day): row.count for row in conversation_activity_result
     }
 
-    message_activity = {
-        str(row.day): row.count
-        for row in message_activity_result
-    }
+    message_activity = {str(row.day): row.count for row in message_activity_result}
 
     activity = []
 
@@ -309,9 +308,7 @@ async def get_analytics(
             "conversations": row.conversation_count or 0,
             "messages": row.message_count or 0,
             "last_activity": (
-                row.last_activity.isoformat()
-                if row.last_activity
-                else None
+                row.last_activity.isoformat() if row.last_activity else None
             ),
         }
         for row in bot_rows
@@ -325,9 +322,7 @@ async def get_analytics(
             "session_id": row.session_id,
             "created_at": row.created_at.isoformat(),
             "last_activity": (
-                row.last_activity.isoformat()
-                if row.last_activity
-                else None
+                row.last_activity.isoformat() if row.last_activity else None
             ),
             "message_count": row.message_count,
         }
