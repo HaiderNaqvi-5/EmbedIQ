@@ -123,7 +123,7 @@ export default function DashboardLayout({
           </div>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center space-x-2 rounded-lg px-3 py-2 text-sm text-[#8C9299] hover:bg-[#1A1D21] hover:text-[#F5F5F3] transition-colors"
+            className="w-full flex items-center space-x-2 rounded-lg px-3 py-2 text-sm text-[#8C9299] hover:bg-[#1A1D21] hover:text-[#F5F5F3] transition-colors focus-visible:ring-2 focus-visible:ring-[#D6A84F] focus-visible:outline-none focus-visible:ring-offset-2 focus-visible:ring-offset-[#111418]"
           >
             <LogOut className="h-4 w-4 shrink-0" />
             <span>Sign out</span>

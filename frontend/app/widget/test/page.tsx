@@ -104,7 +104,7 @@ function WidgetTestContent() {
 
             <button
               type="submit"
-              className="rounded-xl bg-[#D6A84F] px-6 py-3 font-semibold text-[#080A0D] transition hover:bg-[#F0C76A]"
+              className="rounded-xl bg-[#D6A84F] px-6 py-3 font-semibold text-[#080A0D] transition hover:bg-[#F0C76A] focus-visible:ring-2 focus-visible:ring-[#D6A84F] focus-visible:outline-none focus-visible:ring-offset-2 focus-visible:ring-offset-[#111418]"
             >
               Load Widget
             </button>
