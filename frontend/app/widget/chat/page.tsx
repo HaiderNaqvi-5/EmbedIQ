@@ -394,7 +394,7 @@ function WidgetChatContent() {
           <span className="text-[10px] opacity-60 hidden sm:block">Powered by EmbedIQ</span>
           <button
             onClick={handleClose}
-            className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/20 transition-colors"
+            className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/20 transition-colors focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
             aria-label="Close chat"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -553,7 +553,7 @@ function WidgetChatContent() {
             onClick={sendMessage}
             disabled={!input.trim() || loading}
             aria-label="Send message"
-            className="shrink-0 w-9 h-9 flex items-center justify-center rounded-xl transition-all hover:scale-[1.03] active:scale-[0.97] disabled:opacity-40 disabled:hover:scale-100"
+            className="shrink-0 w-9 h-9 flex items-center justify-center rounded-xl transition-all hover:scale-[1.03] active:scale-[0.97] disabled:opacity-40 disabled:hover:scale-100 focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:ring-current"
             style={{ background: pc, color: '#fff' }}
           >
             {loading ? (
