@@ -10,7 +10,6 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.db.session import AsyncSessionLocal
@@ -65,76 +64,50 @@ async def get_analytics(
             return result.all()
 
     # Define all queries
-    q_total_bots = select(func.count(Bot.id)).where(Bot.user_id == user_id)
 
-    q_total_conversations = (
-        select(func.count(Conversation.id))
-        .join(Bot, Conversation.bot_id == Bot.id)
-        .where(Bot.user_id == user_id)
-    )
-
-    q_total_messages = (
-        select(func.count(Message.id))
-        .join(
-            Conversation,
-            Message.conversation_id == Conversation.id,
-        )
-        .join(Bot, Conversation.bot_id == Bot.id)
-        .where(Bot.user_id == user_id)
-    )
-
-    q_user_questions = (
-        select(func.count(Message.id))
-        .join(
-            Conversation,
-            Message.conversation_id == Conversation.id,
-        )
-        .join(Bot, Conversation.bot_id == Bot.id)
-        .where(
-            Bot.user_id == user_id,
-            Message.role == "user",
-        )
-    )
-
-    q_assistant_responses = (
-        select(func.count(Message.id))
-        .join(
-            Conversation,
-            Message.conversation_id == Conversation.id,
-        )
-        .join(Bot, Conversation.bot_id == Bot.id)
-        .where(
-            Bot.user_id == user_id,
-            Message.role == "assistant",
-        )
-    )
-
-    q_conversations_today = (
-        select(func.count(Conversation.id))
-        .join(Bot, Conversation.bot_id == Bot.id)
-        .where(
-            Bot.user_id == user_id,
-            Conversation.created_at >= today_start,
-        )
-    )
-
-    q_messages_today = (
-        select(func.count(Message.id))
-        .join(
-            Conversation,
-            Message.conversation_id == Conversation.id,
-        )
-        .join(Bot, Conversation.bot_id == Bot.id)
-        .where(
-            Bot.user_id == user_id,
-            Message.created_at >= today_start,
-        )
-    )
-
-    q_active_bots = (
-        select(func.count(func.distinct(Conversation.bot_id)))
-        .join(Bot, Conversation.bot_id == Bot.id)
-        .where(Bot.user_id == user_id)
+    # ⚡ Bolt: Combine multiple scalar subqueries into a single database hit to avoid connection
+    # pool exhaustion and reduce query latency across the network.
+    q_summary = select(
+        select(func.count(Bot.id)).where(Bot.user_id == user_id).scalar_subquery().label("total_bots"),
+        (
+            select(func.count(Conversation.id))
+            .join(Bot, Conversation.bot_id == Bot.id)
+            .where(Bot.user_id == user_id)
+        ).scalar_subquery().label("total_conversations"),
+        (
+            select(func.count(Message.id))
+            .join(Conversation, Message.conversation_id == Conversation.id)
+            .join(Bot, Conversation.bot_id == Bot.id)
+            .where(Bot.user_id == user_id)
+        ).scalar_subquery().label("total_messages"),
+        (
+            select(func.count(Message.id))
+            .join(Conversation, Message.conversation_id == Conversation.id)
+            .join(Bot, Conversation.bot_id == Bot.id)
+            .where(Bot.user_id == user_id, Message.role == "user")
+        ).scalar_subquery().label("user_questions"),
+        (
+            select(func.count(Message.id))
+            .join(Conversation, Message.conversation_id == Conversation.id)
+            .join(Bot, Conversation.bot_id == Bot.id)
+            .where(Bot.user_id == user_id, Message.role == "assistant")
+        ).scalar_subquery().label("assistant_responses"),
+        (
+            select(func.count(Conversation.id))
+            .join(Bot, Conversation.bot_id == Bot.id)
+            .where(Bot.user_id == user_id, Conversation.created_at >= today_start)
+        ).scalar_subquery().label("conversations_today"),
+        (
+            select(func.count(Message.id))
+            .join(Conversation, Message.conversation_id == Conversation.id)
+            .join(Bot, Conversation.bot_id == Bot.id)
+            .where(Bot.user_id == user_id, Message.created_at >= today_start)
+        ).scalar_subquery().label("messages_today"),
+        (
+            select(func.count(func.distinct(Conversation.bot_id)))
+            .join(Bot, Conversation.bot_id == Bot.id)
+            .where(Bot.user_id == user_id)
+        ).scalar_subquery().label("active_bots"),
     )
 
     q_conversation_activity = (
@@ -237,7 +210,26 @@ async def get_analytics(
         .limit(10)
     )
 
+    async def _execute_summary(query):
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(query)
+            return result.one()
+
     # Execute all queries concurrently
+    (
+        summary_result,
+        conversation_activity_result,
+        message_activity_result,
+        bot_rows,
+        recent_rows,
+    ) = await asyncio.gather(
+        _execute_summary(q_summary),
+        _execute_all(q_conversation_activity),
+        _execute_all(q_message_activity),
+        _execute_all(q_bot_rows),
+        _execute_all(q_recent_rows),
+    )
+
     (
         total_bots,
         total_conversations,
@@ -247,24 +239,7 @@ async def get_analytics(
         conversations_today,
         messages_today,
         active_bots,
-        conversation_activity_result,
-        message_activity_result,
-        bot_rows,
-        recent_rows,
-    ) = await asyncio.gather(
-        _execute_scalar(q_total_bots),
-        _execute_scalar(q_total_conversations),
-        _execute_scalar(q_total_messages),
-        _execute_scalar(q_user_questions),
-        _execute_scalar(q_assistant_responses),
-        _execute_scalar(q_conversations_today),
-        _execute_scalar(q_messages_today),
-        _execute_scalar(q_active_bots),
-        _execute_all(q_conversation_activity),
-        _execute_all(q_message_activity),
-        _execute_all(q_bot_rows),
-        _execute_all(q_recent_rows),
-    )
+    ) = summary_result
 
     # --------------------------------------------------------
     # Process results
