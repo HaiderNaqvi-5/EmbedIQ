@@ -99,6 +99,7 @@ function WidgetTestContent() {
               value={botId}
               onChange={(event) => setBotId(event.target.value)}
               placeholder="Enter Bot ID"
+              aria-label="Bot ID"
               className="flex-1 rounded-xl border border-[#34383E] bg-[#1A1D21] px-4 py-3 text-[#F5F5F3] outline-none placeholder:text-[#8C9299] focus:border-[#D6A84F]"
             />
 
