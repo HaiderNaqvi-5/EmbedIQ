@@ -221,6 +221,7 @@ export default function BotsPage() {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search bots by name, website or status..."
+            aria-label="Search bots"
             className="w-full rounded-xl border border-[#C8CBD0]/10 bg-[#111418] py-2.5 pl-10 pr-4 text-sm text-[#F5F5F3] outline-none transition placeholder:text-[#5F656D] focus:border-[#D6A84F]/40 focus:ring-2 focus:ring-[#D6A84F]/10"
           />
         </div>
