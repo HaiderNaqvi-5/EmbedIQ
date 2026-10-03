@@ -217,7 +217,11 @@ export default function BotsPage() {
         <div className="relative max-w-md">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#5F656D]" />
 
+          <label htmlFor="search-bots" className="sr-only">
+            Search bots by name, website or status
+          </label>
           <input
+            id="search-bots"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search bots by name, website or status..."
@@ -288,7 +292,7 @@ export default function BotsPage() {
               <Link
                 key={bot.id}
                 href={`/dashboard/bots/${bot.id}`}
-                className="group flex min-h-[210px] flex-col rounded-2xl border border-[#C8CBD0]/10 bg-[#111418] p-5 transition hover:-translate-y-0.5 hover:border-[#D6A84F]/40 hover:bg-[#15181C]"
+                className="group flex min-h-[210px] flex-col rounded-2xl border border-[#C8CBD0]/10 bg-[#111418] p-5 transition hover:-translate-y-0.5 hover:border-[#D6A84F]/40 hover:bg-[#15181C] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D6A84F]/50"
               >
                 <div className="mb-5 flex items-start justify-between gap-4">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#D6A84F]/20 bg-[#D6A84F]/10">
