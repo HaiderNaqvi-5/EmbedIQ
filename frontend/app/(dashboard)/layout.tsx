@@ -71,6 +71,12 @@ export default function DashboardLayout({
 
   return (
     <div className="flex min-h-screen bg-[#080A0D]">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-4 focus:bg-[#D6A84F] focus:text-[#080A0D] focus:font-bold"
+      >
+        Skip to main content
+      </a>
       {/* ─── Sidebar ─────────────────────────────────────────────────────── */}
       <aside className="w-64 shrink-0 flex flex-col bg-[#0D1014] border-r border-[#C8CBD0]/10 shadow-2xl">
         {/* Logo */}
@@ -86,7 +92,7 @@ export default function DashboardLayout({
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 space-y-1">
+        <nav aria-label="Sidebar Navigation" className="flex-1 px-3 py-4 space-y-1">
           {NAV_ITEMS.map((item) => {
             const { label, href, icon: Icon } = item;
 
@@ -98,7 +104,8 @@ export default function DashboardLayout({
               <Link
                 key={href + label}
                 href={href}
-                className={`flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                aria-current={active ? 'page' : undefined}
+                className={`flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D6A84F]/50 ${
                   active
                     ? 'bg-[#D6A84F]/12 text-[#F0C76A] border border-[#D6A84F]/20'
                     : 'text-[#9EA3AA] hover:bg-[#1A1D21] hover:text-[#F5F5F3] border border-transparent'
@@ -123,7 +130,7 @@ export default function DashboardLayout({
           </div>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center space-x-2 rounded-lg px-3 py-2 text-sm text-[#8C9299] hover:bg-[#1A1D21] hover:text-[#F5F5F3] transition-colors"
+            className="w-full flex items-center space-x-2 rounded-lg px-3 py-2 text-sm text-[#8C9299] hover:bg-[#1A1D21] hover:text-[#F5F5F3] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D6A84F]/50"
           >
             <LogOut className="h-4 w-4 shrink-0" />
             <span>Sign out</span>
@@ -132,7 +139,7 @@ export default function DashboardLayout({
       </aside>
 
       {/* ─── Main content ─────────────────────────────────────────────────── */}
-      <main className="flex-1 overflow-auto">
+      <main id="main-content" className="flex-1 overflow-auto">
         {children}
       </main>
     </div>
