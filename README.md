@@ -86,6 +86,45 @@ The dashboard is available at `http://localhost:3000`, and the API is
 available at `http://localhost:8000`. FastAPI's interactive documentation is
 at `http://localhost:8000/docs`.
 
+## Product tour
+
+The following full-resolution captures show the complete EmbedIQ workflow,
+from authentication through deployment and analytics.
+
+### Workspace
+
+| Sign in | Dashboard |
+| --- | --- |
+| ![EmbedIQ sign-in](docs/screenshots/product-tour/02-sign-in.png) | ![EmbedIQ dashboard](docs/screenshots/product-tour/03-dashboard.png) |
+
+| My chatbots | Create a chatbot |
+| --- | --- |
+| ![My chatbots](docs/screenshots/product-tour/04-my-chatbots.png) | ![Create a chatbot](docs/screenshots/product-tour/05-create-chatbot.png) |
+
+### Knowledge and configuration
+
+| Knowledge bases | Bot overview |
+| --- | --- |
+| ![Knowledge bases](docs/screenshots/product-tour/06-knowledge-bases.png) | ![Bot overview](docs/screenshots/product-tour/07-bot-overview.png) |
+
+| Crawl progress | Branding and theme |
+| --- | --- |
+| ![Crawl progress](docs/screenshots/product-tour/08-crawl-progress.png) | ![Branding and theme](docs/screenshots/product-tour/09-branding-theme.png) |
+
+### Deployment and reporting
+
+| Embed installation | Widget preview |
+| --- | --- |
+| ![Embed installation](docs/screenshots/product-tour/10-embed-installation.png) | ![Widget preview](docs/screenshots/product-tour/11-widget-preview.png) |
+
+| Live chat widget | Conversation analytics |
+| --- | --- |
+| ![Live chat widget](docs/screenshots/product-tour/12-live-chat-widget.png) | ![Conversation analytics](docs/screenshots/product-tour/13-conversation-analytics.png) |
+
+| Account settings | Landing page |
+| --- | --- |
+| ![Account settings](docs/screenshots/product-tour/14-account-settings.png) | ![EmbedIQ landing page](docs/screenshots/product-tour/01-landing-page.png) |
+
 For background crawling and indexing, start a worker from `backend/`:
 
 ```bash
