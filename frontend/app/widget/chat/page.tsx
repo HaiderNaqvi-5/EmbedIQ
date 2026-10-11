@@ -515,7 +515,7 @@ function WidgetChatContent() {
         ))}
         {/* Error banner */}
         {error && (
-          <div className="text-center text-xs text-red-500 py-1">{error}</div>
+          <div role="alert" className="text-center text-xs text-red-500 py-1">{error}</div>
         )}
         <div ref={messagesEndRef} />
       </div>

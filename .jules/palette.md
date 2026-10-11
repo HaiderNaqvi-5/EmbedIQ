@@ -1,0 +1,3 @@
+## 2024-10-11 - Add role="alert" to dynamic form error states and aria-busy to loading buttons
+**Learning:** Screen readers may miss dynamically rendered error messages in forms if the container doesn't have `role="alert"` (or `aria-live="assertive"`). Additionally, using `aria-busy={loading}` on form submit buttons helps assistive technologies announce the loading state correctly.
+**Action:** When creating form validation or API failure states in React/Next.js components, always add `role="alert"` to the container div displaying the error text to ensure immediate announcement by assistive technologies. Always use `aria-busy` to indicate loading states on buttons.
