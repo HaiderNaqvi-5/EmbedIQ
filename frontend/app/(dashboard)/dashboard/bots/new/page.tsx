@@ -132,7 +132,7 @@ export default function NewBotPage() {
           </div>
 
           {error && (
-            <div className="mb-6 flex items-start gap-3 rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-300">
+            <div role="alert" className="mb-6 flex items-start gap-3 rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-300">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
               <span>{error}</span>
             </div>
@@ -231,6 +231,7 @@ export default function NewBotPage() {
               <button
                 type="submit"
                 disabled={loading}
+                aria-busy={loading}
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#D6A84F] px-5 py-3 text-sm font-semibold text-[#080A0D] transition hover:bg-[#F0C76A] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {loading ? (
