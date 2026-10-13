@@ -10,7 +10,6 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.db.session import AsyncSessionLocal
@@ -237,29 +236,31 @@ async def get_analytics(
         .limit(10)
     )
 
+    # PERFORMANCE OPTIMIZATION:
+    # Previously, these 8 queries were executed concurrently via asyncio.gather(),
+    # consuming 8 separate database connections and causing pool exhaustion.
+    # By combining them into a single query using scalar_subquery(),
+    # we retrieve the exact same summary data in a single connection and round-trip.
+    q_summary = select(
+        q_total_bots.scalar_subquery().label("total_bots"),
+        q_total_conversations.scalar_subquery().label("total_conversations"),
+        q_total_messages.scalar_subquery().label("total_messages"),
+        q_user_questions.scalar_subquery().label("user_questions"),
+        q_assistant_responses.scalar_subquery().label("assistant_responses"),
+        q_conversations_today.scalar_subquery().label("conversations_today"),
+        q_messages_today.scalar_subquery().label("messages_today"),
+        q_active_bots.scalar_subquery().label("active_bots"),
+    )
+
     # Execute all queries concurrently
     (
-        total_bots,
-        total_conversations,
-        total_messages,
-        user_questions,
-        assistant_responses,
-        conversations_today,
-        messages_today,
-        active_bots,
+        summary_rows,
         conversation_activity_result,
         message_activity_result,
         bot_rows,
         recent_rows,
     ) = await asyncio.gather(
-        _execute_scalar(q_total_bots),
-        _execute_scalar(q_total_conversations),
-        _execute_scalar(q_total_messages),
-        _execute_scalar(q_user_questions),
-        _execute_scalar(q_assistant_responses),
-        _execute_scalar(q_conversations_today),
-        _execute_scalar(q_messages_today),
-        _execute_scalar(q_active_bots),
+        _execute_all(q_summary),
         _execute_all(q_conversation_activity),
         _execute_all(q_message_activity),
         _execute_all(q_bot_rows),
@@ -269,6 +270,16 @@ async def get_analytics(
     # --------------------------------------------------------
     # Process results
     # --------------------------------------------------------
+
+    summary = summary_rows[0]
+    total_bots = summary.total_bots or 0
+    total_conversations = summary.total_conversations or 0
+    total_messages = summary.total_messages or 0
+    user_questions = summary.user_questions or 0
+    assistant_responses = summary.assistant_responses or 0
+    conversations_today = summary.conversations_today or 0
+    messages_today = summary.messages_today or 0
+    active_bots = summary.active_bots or 0
 
     average_messages_per_conversation = (
         round(total_messages / total_conversations, 2)
