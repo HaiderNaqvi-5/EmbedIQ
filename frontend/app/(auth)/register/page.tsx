@@ -60,7 +60,7 @@ export default function RegisterPage() {
     <div className="w-full max-w-md">
       <Link
         href="/"
-        className="mb-8 flex items-center justify-center gap-3"
+        className="mb-8 flex items-center justify-center gap-3 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D6A84F]/50"
       >
         <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#D6A84F]/30 bg-[#D6A84F]/10 text-[#F0C76A]">
           <Sparkles className="h-5 w-5" />
@@ -87,8 +87,12 @@ export default function RegisterPage() {
         </div>
 
         {error && (
-          <div className="mb-5 flex items-start gap-3 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <div
+            role="alert"
+            aria-live="assertive"
+            className="mb-5 flex items-start gap-3 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300"
+          >
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
             <span>{error}</span>
           </div>
         )}
@@ -157,7 +161,8 @@ export default function RegisterPage() {
           <button
             type="submit"
             disabled={loading}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#D6A84F] px-4 py-3 text-sm font-semibold text-[#080A0D] transition hover:bg-[#F0C76A] disabled:cursor-not-allowed disabled:opacity-60"
+            aria-busy={loading}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#D6A84F] px-4 py-3 text-sm font-semibold text-[#080A0D] transition hover:bg-[#F0C76A] disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D6A84F]/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#111418]"
           >
             {loading ? (
               <>
@@ -174,7 +179,7 @@ export default function RegisterPage() {
           Already have an account?{' '}
           <Link
             href="/login"
-            className="font-semibold text-[#D6A84F] transition hover:text-[#F0C76A]"
+            className="rounded-sm font-semibold text-[#D6A84F] transition hover:text-[#F0C76A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D6A84F]/50"
           >
             Sign in
           </Link>
