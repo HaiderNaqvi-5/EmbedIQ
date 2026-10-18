@@ -177,20 +177,20 @@ async def get_bot(
     Ownership is enforced via `get_bot_for_user`; returns 404 if not found or
     not owned by the requesting user.
     """
-    # Count indexed pages (pages that were crawled successfully)
-    page_count_result = await db.execute(
-        select(func.count(Page.id)).where(
-            Page.bot_id == bot.id,
-            Page.crawl_status == "SUCCESS",
+    # ⚡ Bolt Optimization: Combine counts into a single query to reduce database roundtrips
+    # and connection pool exhaustion.
+    counts_result = await db.execute(
+        select(
+            select(func.count(Page.id)).where(
+                Page.bot_id == bot.id,
+                Page.crawl_status == "SUCCESS"
+            ).scalar_subquery().label("total_pages"),
+            select(func.count(Chunk.id)).where(
+                Chunk.bot_id == bot.id
+            ).scalar_subquery().label("total_chunks")
         )
     )
-    total_pages = page_count_result.scalar_one() or 0
-
-    # Count chunks
-    chunk_count_result = await db.execute(
-        select(func.count(Chunk.id)).where(Chunk.bot_id == bot.id)
-    )
-    total_chunks = chunk_count_result.scalar_one() or 0
+    total_pages, total_chunks = counts_result.one()
 
     # Eagerly load brand settings
     brand_result = await db.execute(
