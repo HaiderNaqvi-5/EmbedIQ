@@ -75,7 +75,7 @@ export default function LoginPage() {
         </div>
 
         {error && (
-          <div className="mb-5 flex items-start gap-3 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          <div role="alert" className="mb-5 flex items-start gap-3 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
             <span>{error}</span>
           </div>
@@ -125,7 +125,8 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#D6A84F] px-4 py-3 text-sm font-semibold text-[#080A0D] transition hover:bg-[#F0C76A] disabled:cursor-not-allowed disabled:opacity-60"
+            aria-busy={loading}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#D6A84F] px-4 py-3 text-sm font-semibold text-[#080A0D] transition hover:bg-[#F0C76A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D6A84F]/50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loading ? (
               <>
