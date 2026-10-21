@@ -10,7 +10,6 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.db.session import AsyncSessionLocal
@@ -54,10 +53,10 @@ async def get_analytics(
 
     seven_days_start = today_start - timedelta(days=6)
 
-    async def _execute_scalar(query):
+    async def _execute_one(query):
         async with AsyncSessionLocal() as session:
             result = await session.execute(query)
-            return result.scalar_one()
+            return result.one()
 
     async def _execute_all(query):
         async with AsyncSessionLocal() as session:
@@ -237,29 +236,28 @@ async def get_analytics(
         .limit(10)
     )
 
-    # Execute all queries concurrently
+    # PERFORMANCE OPTIMIZATION: Combine 8 scalar queries into a single query
+    # to avoid exhausting the DB connection pool and to reduce network round-trips.
+    q_combined_scalars = select(
+        q_total_bots.scalar_subquery().label("total_bots"),
+        q_total_conversations.scalar_subquery().label("total_conversations"),
+        q_total_messages.scalar_subquery().label("total_messages"),
+        q_user_questions.scalar_subquery().label("user_questions"),
+        q_assistant_responses.scalar_subquery().label("assistant_responses"),
+        q_conversations_today.scalar_subquery().label("conversations_today"),
+        q_messages_today.scalar_subquery().label("messages_today"),
+        q_active_bots.scalar_subquery().label("active_bots"),
+    )
+
+    # Execute the combined scalar query and the list queries concurrently
     (
-        total_bots,
-        total_conversations,
-        total_messages,
-        user_questions,
-        assistant_responses,
-        conversations_today,
-        messages_today,
-        active_bots,
+        combined_scalars,
         conversation_activity_result,
         message_activity_result,
         bot_rows,
         recent_rows,
     ) = await asyncio.gather(
-        _execute_scalar(q_total_bots),
-        _execute_scalar(q_total_conversations),
-        _execute_scalar(q_total_messages),
-        _execute_scalar(q_user_questions),
-        _execute_scalar(q_assistant_responses),
-        _execute_scalar(q_conversations_today),
-        _execute_scalar(q_messages_today),
-        _execute_scalar(q_active_bots),
+        _execute_one(q_combined_scalars),
         _execute_all(q_conversation_activity),
         _execute_all(q_message_activity),
         _execute_all(q_bot_rows),
@@ -271,8 +269,8 @@ async def get_analytics(
     # --------------------------------------------------------
 
     average_messages_per_conversation = (
-        round(total_messages / total_conversations, 2)
-        if total_conversations
+        round(combined_scalars.total_messages / combined_scalars.total_conversations, 2)
+        if combined_scalars.total_conversations
         else 0
     )
 
@@ -336,14 +334,14 @@ async def get_analytics(
 
     return {
         "summary": {
-            "total_bots": total_bots,
-            "active_bots": active_bots,
-            "total_conversations": total_conversations,
-            "total_messages": total_messages,
-            "user_questions": user_questions,
-            "assistant_responses": assistant_responses,
-            "conversations_today": conversations_today,
-            "messages_today": messages_today,
+            "total_bots": combined_scalars.total_bots,
+            "active_bots": combined_scalars.active_bots,
+            "total_conversations": combined_scalars.total_conversations,
+            "total_messages": combined_scalars.total_messages,
+            "user_questions": combined_scalars.user_questions,
+            "assistant_responses": combined_scalars.assistant_responses,
+            "conversations_today": combined_scalars.conversations_today,
+            "messages_today": combined_scalars.messages_today,
             "average_messages_per_conversation": average_messages_per_conversation,
         },
         "activity": activity,
